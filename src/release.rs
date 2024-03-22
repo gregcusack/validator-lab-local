@@ -40,6 +40,7 @@ pub struct BuildConfig {
     do_build: bool,
     debug_build: bool,
     _build_path: PathBuf,
+    local_repo_path: Option<PathBuf>, 
 }
 
 impl BuildConfig {
@@ -47,6 +48,7 @@ impl BuildConfig {
         deploy_method: &str,
         do_build: bool,
         debug_build: bool,
+        local_repo_path: Option<PathBuf>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let deploy_method = deploy_method
             .parse::<DeployMethod>()
@@ -63,6 +65,7 @@ impl BuildConfig {
             do_build,
             debug_build,
             _build_path: build_path,
+            local_repo_path,
         })
     }
 
@@ -97,6 +100,10 @@ impl BuildConfig {
     fn build(&self) -> Result<(), Box<dyn Error>> {
         let start_time = Instant::now();
         let build_variant = if self.debug_build { "--debug" } else { "" };
+        let build_repo = match &self.local_repo_path {
+            Some(repo) => repo.to_str().unwrap(),
+            None => ""
+        };
 
         let install_directory = SOLANA_ROOT.join("farf");
         match std::process::Command::new("./cargo-install-all.sh")
@@ -104,6 +111,7 @@ impl BuildConfig {
             .arg(install_directory)
             .arg(build_variant)
             .arg("--validator-only")
+            .arg(build_repo)
             .status()
         {
             Ok(result) => {
