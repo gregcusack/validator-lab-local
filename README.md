@@ -17,6 +17,6 @@ kubectl create ns <namespace>
 
 ### Run
 ```
-cargo run --bin solana-k8s --
-    -n <namespace e.g. monogon-test>
+cargo run --bin cluster --
+    -n <namespace e.g. cluster-test>
 ```
