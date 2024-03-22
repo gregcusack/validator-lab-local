@@ -18,5 +18,7 @@ kubectl create ns <namespace>
 ### Run
 ```
 cargo run --bin cluster --
-    -n <namespace e.g. cluster-test>
+    -n <namespace e.g. monogon-test>
+    --deploy-method local
+    --do-build
 ```
