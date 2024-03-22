@@ -1,7 +1,7 @@
 use {
     clap::{crate_description, crate_name, App, Arg, ArgMatches},
     log::*,
-    validator_lab::{initialize_globals, kubernetes::Kubernetes, release::BuildConfig},
+    validator_lab::{initialize_globals, kubernetes::Kubernetes, release::{BuildConfig, DeployMethod}},
 };
 
 fn parse_matches() -> ArgMatches<'static> {
@@ -22,6 +22,14 @@ fn parse_matches() -> ArgMatches<'static> {
                 .possible_values(&["local", "tar", "skip"])
                 .default_value("local")
                 .help("Deploy method. tar, local, skip. [default: local]"),
+        )
+        .arg(
+            Arg::with_name("local-path")
+                .long("local-path")
+                .takes_value(true)
+                .required_if("deploy-method", "local")
+                .conflicts_with_all(&["tar", "skip"])
+                .help("Path to local agave repo. Required for 'local' deploy method."),
         )
         .arg(
             Arg::with_name("do_build")
@@ -53,6 +61,13 @@ async fn main() {
         namespace: matches.value_of("cluster_namespace").unwrap_or_default(),
     };
 
+    let deploy_method = matches.value_of("deploy_method").unwrap();
+    if deploy_method == DeployMethod::Local.to_string() && !matches.is_present("local-path") {
+        panic!("Error: --local-path is required for 'local' deploy-method.");
+    } else if deploy_method != DeployMethod::Local.to_string() && matches.is_present("local-path") {
+        warn!("WARN: --local-path <path> will be ignored");
+    }
+
     let kub_controller = Kubernetes::new(environment_config.namespace).await;
     match kub_controller.namespace_exists().await {
         Ok(true) => (),
@@ -70,9 +85,10 @@ async fn main() {
     }
 
     let build_config = BuildConfig::new(
-        matches.value_of("deploy_method").unwrap(),
+        deploy_method,
         matches.is_present("do_build"),
         matches.is_present("debug_build"),
+        matches.value_of("local-path").map(|p| p.into()),
     )
     .unwrap_or_else(|err| {
         panic!("Error creating BuildConfig: {}", err);
