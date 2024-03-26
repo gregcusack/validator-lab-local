@@ -1,7 +1,7 @@
 use {
     clap::{crate_description, crate_name, App, Arg, ArgMatches},
     log::*,
-    validator_lab::{initialize_globals, kubernetes::Kubernetes, release::{BuildConfig, DeployMethod}},
+    validator_lab::{initialize_globals, kubernetes::Kubernetes, release::{BuildConfig, DeployMethod}, SolanaRoot},
 };
 
 fn parse_matches() -> ArgMatches<'static> {
@@ -67,6 +67,11 @@ async fn main() {
     } else if deploy_method != DeployMethod::Local.to_string() && matches.is_present("local-path") {
         warn!("WARN: --local-path <path> will be ignored");
     }
+    
+    let solana_root = match matches.value_of("local-path") {
+        Some(path) => SolanaRoot::new_from_path(path.into()),
+        None => SolanaRoot::default(),
+    };
 
     let kub_controller = Kubernetes::new(environment_config.namespace).await;
     match kub_controller.namespace_exists().await {
@@ -89,6 +94,7 @@ async fn main() {
         matches.is_present("do_build"),
         matches.is_present("debug_build"),
         matches.value_of("local-path").map(|p| p.into()),
+        &solana_root.get_root_path(),
     )
     .unwrap_or_else(|err| {
         panic!("Error creating BuildConfig: {}", err);
