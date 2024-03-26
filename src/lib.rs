@@ -1,22 +1,10 @@
-use {
-    lazy_static::lazy_static,
-    std::{env, path::PathBuf},
-};
-
-lazy_static! {
-    #[derive(Debug)]
-    static ref SOLANA_ROOT: PathBuf = get_solana_root();
-}
+use std::{env, path::PathBuf};
 
 #[macro_export]
 macro_rules! boxed_error {
     ($message:expr) => {
         Box::new(std::io::Error::new(std::io::ErrorKind::Other, $message)) as Box<dyn Error + Send>
     };
-}
-
-pub fn initialize_globals() {
-    let _ = *SOLANA_ROOT; // Force initialization of lazy_static
 }
 
 pub fn get_solana_root() -> PathBuf {

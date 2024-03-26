@@ -1,5 +1,5 @@
 use {
-    crate::{boxed_error, SOLANA_ROOT},
+    crate::boxed_error,
     git2::Repository,
     log::*,
     std::{error::Error, fmt::Display, path::PathBuf, str::FromStr, time::Instant},
@@ -55,9 +55,9 @@ impl BuildConfig {
             .map_err(|_| "Failed to parse deploy_method".to_string())?;
 
         let build_path = match deploy_method {
-            DeployMethod::Local => SOLANA_ROOT.join("farf/bin"),
-            DeployMethod::Tar => SOLANA_ROOT.join("solana-release/bin"),
-            DeployMethod::Skip => SOLANA_ROOT.join("farf/bin"),
+            DeployMethod::Local => solana_root_path.join("farf/bin"),
+            DeployMethod::Tar => solana_root_path.join("solana-release/bin"),
+            DeployMethod::Skip => solana_root_path.join("farf/bin"),
         };
 
         Ok(BuildConfig {

@@ -2,7 +2,6 @@ use {
     clap::{crate_description, crate_name, App, Arg, ArgMatches},
     log::*,
     validator_lab::{
-        initialize_globals,
         kubernetes::Kubernetes,
         release::{BuildConfig, DeployMethod},
         SolanaRoot,
@@ -60,7 +59,6 @@ async fn main() {
         std::env::set_var("RUST_LOG", "INFO");
     }
     solana_logger::setup();
-    initialize_globals();
     let matches = parse_matches();
     let environment_config = EnvironmentConfig {
         namespace: matches.value_of("cluster_namespace").unwrap_or_default(),
