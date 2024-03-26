@@ -41,6 +41,7 @@ pub struct BuildConfig {
     debug_build: bool,
     _build_path: PathBuf,
     local_repo_path: Option<PathBuf>, 
+    solana_root_path: PathBuf,
 }
 
 impl BuildConfig {
@@ -49,6 +50,7 @@ impl BuildConfig {
         do_build: bool,
         debug_build: bool,
         local_repo_path: Option<PathBuf>,
+        solana_root_path: &PathBuf,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let deploy_method = deploy_method
             .parse::<DeployMethod>()
@@ -66,6 +68,7 @@ impl BuildConfig {
             debug_build,
             _build_path: build_path,
             local_repo_path,
+            solana_root_path: solana_root_path.clone(),
         })
     }
 
@@ -104,14 +107,14 @@ impl BuildConfig {
             Some(repo) => repo.to_str().unwrap(),
             None => ""
         };
+        info!("build path: {}", build_repo);
 
-        let install_directory = SOLANA_ROOT.join("farf");
-        match std::process::Command::new("./cargo-install-all.sh")
-            .current_dir(SOLANA_ROOT.join("scripts"))
+        let install_directory = self.solana_root_path.join("farf");
+        let install_script = self.solana_root_path.join("scripts/cargo-install-all.sh");
+        match std::process::Command::new(install_script)
             .arg(install_directory)
             .arg(build_variant)
             .arg("--validator-only")
-            .arg(build_repo)
             .status()
         {
             Ok(result) => {
@@ -121,10 +124,35 @@ impl BuildConfig {
                     return Err(boxed_error!("Failed to build validator"));
                 }
             }
-            Err(err) => return Err(Box::new(err)),
+            Err(err) => {
+                info!("here1");
+                return Err(Box::new(err))
+            }
         }
 
-        let solana_repo = Repository::open(SOLANA_ROOT.as_path())?;
+        // match std::process::Command::new("./cargo-install-all.sh")
+        //     .current_dir(SOLANA_ROOT.join("scripts"))
+        //     .arg(install_directory)
+        //     .arg(build_variant)
+        //     .arg("--validator-only")
+        //     // .arg(build_repo)
+        //     .status()
+        // {
+        //     Ok(result) => {
+        //         if result.success() {
+        //             info!("Successfully build validator")
+        //         } else {
+        //             return Err(boxed_error!("Failed to build validator"));
+        //         }
+        //     }
+        //     Err(err) => {
+        //         info!("here1");
+        //         return Err(Box::new(err))
+        //     }
+        // }
+
+        // let solana_repo = Repository::open(SOLANA_ROOT.as_path())?;
+        let solana_repo = Repository::open(self.solana_root_path.as_path())?;
         let commit = solana_repo.revparse_single("HEAD")?.id();
         let branch = solana_repo
             .head()?
@@ -147,7 +175,7 @@ impl BuildConfig {
 
         // Write to branch/tag and commit to version.yml
         let content = format!("channel: devbuild {}\ncommit: {}", note, commit);
-        std::fs::write(SOLANA_ROOT.join("farf/version.yml"), content)
+        std::fs::write(self.solana_root_path.join("farf/version.yml"), content)
             .expect("Failed to write version.yml");
 
         info!("Build took {:.3?} seconds", start_time.elapsed());
