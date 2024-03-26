@@ -1,7 +1,12 @@
 use {
     clap::{crate_description, crate_name, App, Arg, ArgMatches},
     log::*,
-    validator_lab::{initialize_globals, kubernetes::Kubernetes, release::{BuildConfig, DeployMethod}, SolanaRoot},
+    validator_lab::{
+        initialize_globals,
+        kubernetes::Kubernetes,
+        release::{BuildConfig, DeployMethod},
+        SolanaRoot,
+    },
 };
 
 fn parse_matches() -> ArgMatches<'static> {
@@ -62,12 +67,20 @@ async fn main() {
     };
 
     let deploy_method = matches.value_of("deploy_method").unwrap();
-    if deploy_method == DeployMethod::Local.to_string() && !matches.is_present("local-path") {
-        panic!("Error: --local-path is required for 'local' deploy-method.");
-    } else if deploy_method != DeployMethod::Local.to_string() && matches.is_present("local-path") {
-        warn!("WARN: --local-path <path> will be ignored");
+    let local_path = matches.value_of("local-path");
+    match deploy_method {
+        method if method == DeployMethod::Local.to_string() => {
+            if local_path.is_none() {
+                panic!("Error: --local-path is required for 'local' deploy-method.");
+            }
+        }
+        _ => {
+            if local_path.is_some() {
+                warn!("WARN: --local-path <path> will be ignored");
+            }
+        }
     }
-    
+
     let solana_root = match matches.value_of("local-path") {
         Some(path) => SolanaRoot::new_from_path(path.into()),
         None => SolanaRoot::default(),
@@ -93,7 +106,6 @@ async fn main() {
         deploy_method,
         matches.is_present("do_build"),
         matches.is_present("debug_build"),
-        matches.value_of("local-path").map(|p| p.into()),
         &solana_root.get_root_path(),
     )
     .unwrap_or_else(|err| {
