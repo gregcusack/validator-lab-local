@@ -19,6 +19,7 @@ kubectl create ns <namespace>
 ```
 cargo run --bin cluster --
     -n <namespace>
+    --deploy-method local
     --local-path <path-to-local-agave-monorepo>
     --do-build
 ```
