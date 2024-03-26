@@ -40,7 +40,6 @@ pub struct BuildConfig {
     do_build: bool,
     debug_build: bool,
     _build_path: PathBuf,
-    local_repo_path: Option<PathBuf>, 
     solana_root_path: PathBuf,
 }
 
@@ -49,7 +48,6 @@ impl BuildConfig {
         deploy_method: &str,
         do_build: bool,
         debug_build: bool,
-        local_repo_path: Option<PathBuf>,
         solana_root_path: &PathBuf,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let deploy_method = deploy_method
@@ -67,7 +65,6 @@ impl BuildConfig {
             do_build,
             debug_build,
             _build_path: build_path,
-            local_repo_path,
             solana_root_path: solana_root_path.clone(),
         })
     }
@@ -103,11 +100,6 @@ impl BuildConfig {
     fn build(&self) -> Result<(), Box<dyn Error>> {
         let start_time = Instant::now();
         let build_variant = if self.debug_build { "--debug" } else { "" };
-        let build_repo = match &self.local_repo_path {
-            Some(repo) => repo.to_str().unwrap(),
-            None => ""
-        };
-        info!("build path: {}", build_repo);
 
         let install_directory = self.solana_root_path.join("farf");
         let install_script = self.solana_root_path.join("scripts/cargo-install-all.sh");
@@ -124,32 +116,8 @@ impl BuildConfig {
                     return Err(boxed_error!("Failed to build validator"));
                 }
             }
-            Err(err) => {
-                info!("here1");
-                return Err(Box::new(err))
-            }
+            Err(err) => return Err(Box::new(err)),
         }
-
-        // match std::process::Command::new("./cargo-install-all.sh")
-        //     .current_dir(SOLANA_ROOT.join("scripts"))
-        //     .arg(install_directory)
-        //     .arg(build_variant)
-        //     .arg("--validator-only")
-        //     // .arg(build_repo)
-        //     .status()
-        // {
-        //     Ok(result) => {
-        //         if result.success() {
-        //             info!("Successfully build validator")
-        //         } else {
-        //             return Err(boxed_error!("Failed to build validator"));
-        //         }
-        //     }
-        //     Err(err) => {
-        //         info!("here1");
-        //         return Err(Box::new(err))
-        //     }
-        // }
 
         // let solana_repo = Repository::open(SOLANA_ROOT.as_path())?;
         let solana_repo = Repository::open(self.solana_root_path.as_path())?;
