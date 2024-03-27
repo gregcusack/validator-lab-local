@@ -1,8 +1,8 @@
 use {
-    crate::{boxed_error, cat_file, download_to_temp, extract_release_archive},
+    crate::boxed_error,
     git2::Repository,
     log::*,
-    std::{error::Error, fmt::Display, fs, path::PathBuf, str::FromStr, time::Instant},
+    std::{error::Error, fmt::Display, path::PathBuf, str::FromStr, time::Instant},
 };
 
 #[derive(Debug)]
@@ -41,7 +41,6 @@ pub struct BuildConfig {
     debug_build: bool,
     _build_path: PathBuf,
     solana_root_path: PathBuf,
-    release_channel: String,
 }
 
 impl BuildConfig {
@@ -50,7 +49,6 @@ impl BuildConfig {
         do_build: bool,
         debug_build: bool,
         solana_root_path: &PathBuf,
-        release_channel: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let deploy_method = deploy_method
             .parse::<DeployMethod>()
@@ -68,25 +66,13 @@ impl BuildConfig {
             debug_build,
             _build_path: build_path,
             solana_root_path: solana_root_path.clone(),
-            release_channel,
         })
     }
 
     pub async fn prepare(&self) -> Result<(), Box<dyn Error>> {
         match self.deploy_method {
             DeployMethod::Tar => {
-                let file_name = "solana-release";
-                match self.setup_tar_deploy(file_name).await {
-                    Ok(tar_directory) => {
-                        info!("Sucessfuly setup tar file");
-                        cat_file(&tar_directory.join("version.yml")).unwrap();
-                    }
-                    Err(err) => {
-                        error!("Failed to setup tar file! Did you set --release-channel? \
-                        Or is there a solana-release.tar.bz2 file already in your solana/ root directory?");
-                        return Err(err);
-                    }
-                }
+                return Err(boxed_error!("Tar deploy method not implemented yet."));
             }
             DeployMethod::Local => {
                 match self.setup_local_deploy() {
@@ -100,30 +86,6 @@ impl BuildConfig {
         }
         info!("Completed Prepare Deploy");
         Ok(())
-    }
-
-    async fn setup_tar_deploy(&self, file_name: &str) -> Result<PathBuf, Box<dyn Error>> {
-        let tar_file = format!("{}{}", file_name, ".tar.bz2");
-        info!("tar file: {}", tar_file);
-        if !self.release_channel.is_empty() {
-            match self.download_release_from_channel(file_name).await {
-                Ok(_) => info!("Successfully downloaded tar release from channel"),
-                Err(_) => error!("Failed to download tar release"),
-            }
-        } else {
-            info!("No release channel set. Attempting to extract a local version of solana-release.tar.bz2...");
-        }
-
-        // Extract it and load the release version metadata
-        let tarball_filename = self.solana_root_path.join(tar_file);
-        let temp_release_dir = self.solana_root_path.join(file_name);
-        extract_release_archive(&tarball_filename, &temp_release_dir, file_name).map_err(
-            |err| {
-                format!("Unable to extract {tarball_filename:?} into {temp_release_dir:?}: {err}")
-            },
-        )?;
-
-        Ok(temp_release_dir)
     }
 
     fn setup_local_deploy(&self) -> Result<(), Box<dyn Error>> {
@@ -185,39 +147,6 @@ impl BuildConfig {
             .expect("Failed to write version.yml");
 
         info!("Build took {:.3?} seconds", start_time.elapsed());
-        Ok(())
-    }
-
-    async fn download_release_from_channel(&self, file_name: &str) -> Result<(), Box<dyn Error>> {
-        info!("Downloading release from channel: {}", self.release_channel);
-        let tar_file = format!("{}{}", file_name, ".tar.bz2");
-        let file_path = self.solana_root_path.join(tar_file.as_str());
-        // Remove file
-        if let Err(err) = fs::remove_file(&file_path) {
-            if err.kind() != std::io::ErrorKind::NotFound {
-                return Err(boxed_error!(format!(
-                    "{}: {:?}",
-                    "Error while removing file:", err
-                )));
-            }
-        }
-
-        let update_download_url = format!(
-            "{}{}{}",
-            "https://release.solana.com/",
-            self.release_channel,
-            "/solana-release-x86_64-unknown-linux-gnu.tar.bz2"
-        );
-        info!("update_download_url: {}", update_download_url);
-
-        download_to_temp(
-            update_download_url.as_str(),
-            tar_file.as_str(),
-            self.solana_root_path.clone(),
-        )
-        .await
-        .map_err(|err| format!("Unable to download {update_download_url}: {err}"))?;
-
         Ok(())
     }
 }
